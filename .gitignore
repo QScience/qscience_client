@@ -1,0 +1,13 @@
+theme/extract.inc
+includes/forms/modules.inc
+tests/importing/imported/*
+.directory
+__*
+test_*
+*/*.swp
+findm
+*.patch
+\#*
+.\#*
+_*
+~*

@@ -1,0 +1,224 @@
+<?php
+/**
+ * @file
+ * QScience Patterns Client module.
+ * This module allows the user to send the full QScience configuration 
+ * to the patterns official server very easily, providing a new "QScience" tab with a
+ * "one click" to send my QScience configuration button.
+ * Checks that the requirements are fulfilled and offers a set of quick links to perform 
+ * them automatically in case they are not satisfied. 
+ * 
+ * @TO-DO
+ *  - Send a automatically acceptable friendship request in 
+ *    _qscience_patterns_client_automatic_friendship(). Pending on changes on D2D (see l.136)
+ */
+define('PATTERNS_OFFICIAL_SERVER', 'http://patterns.inn.ac');
+define('PATTERNS_OFFICIAL_SERVER_XMLRPC', PATTERNS_OFFICIAL_SERVER . '/xmlrpc.php');
+
+/**
+ * Implements hook_menu().
+ */
+function qscience_patterns_client_menu() {
+  $items['admin/patterns/qscience'] = array(
+    'title' => 'QScience',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('qscience_patterns_client_form'),
+    'access arguments' => array('administer patterns'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
+  );
+  $items['admin/patterns/qscience/automatic-friendship'] = array(
+  		'page callback' => '_qscience_patterns_client_automatic_friendship',
+  		'access callback' => !d2d_api_friend_get_by_url(PATTERNS_OFFICIAL_SERVER_XMLRPC),
+  );
+  $items['admin/patterns/qscience/automatic-credentials'] = array(
+    'page callback' => '_qscience_patterns_client_automatic_credentials',
+    'access callback' => !patterns_client_is_user_registered_on_server(PATTERNS_OFFICIAL_SERVER_XMLRPC),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_form().
+ * Checks if the requirements to generate a pattern and send it to the "official" server
+ * are fulfilled. In that case, enables a button to export and push a pattern in just
+ * one click.
+ * @param $form
+ * @param $form_state
+ * @return array  Form to perform the operation.
+ */
+function qscience_patterns_client_form($form, &$form_state) {
+  $form = array();
+  $is_friend = d2d_api_friend_get_by_url(PATTERNS_OFFICIAL_SERVER_XMLRPC);
+  $is_registered = patterns_client_is_user_registered_on_server(PATTERNS_OFFICIAL_SERVER_XMLRPC);
+  
+  $patterns_server_link = l('Patterns Server', PATTERNS_OFFICIAL_SERVER, array('attributes' => array('target' => '_blank')));
+  $d2d_link = l(t('D2D settings'), 'admin/d2d');
+  $automatic_friendship_link = l(t('establish a friendship automatically with the official Patterns Server'), 'admin/patterns/qscience/automatic-friendship');
+  $automatic_credentials_link = l(t('register with automatically generated credentials'), 'admin/patterns/qscience/automatic-credentials');
+  $patterns_share_link = l(t('Patterns Share settings'), 'admin/patterns/share');
+  
+  $form['status'] = array(
+    '#markup' => t('Before being able to share your config in one click, you will need to perform the following operations:'),
+  );
+	$header = array(
+			array('data' => t('Requirement')),
+			array('data' => t('Satisfied?')),
+	);
+	$rows[] = array(
+			array('data' => t('Are you friends with !patterns_server?', array('!patterns_server' => $patterns_server_link))),
+			array('data' => ($is_friend) ? t('Yes'): t('No. Please click here to !friendship_link or visit !d2d_settings to do it manually.',
+					  array('!friendship_link' => $automatic_friendship_link, '!d2d_settings' => $d2d_link))),
+	);
+	$rows[] = array(
+			array('data' => t('Are you registered at !patterns_server?', array('!patterns_server' => $patterns_server_link))),
+			array('data' => ($is_registered) ? t('Yes'): t('No. Please click here to !credentials_link or visit !patterns_share to create your account manually.',
+					  array('!credentials_link' => $automatic_credentials_link, '!patterns_share' => $patterns_share_link,))),
+	);
+	$form['table'] = array(
+			'#theme' => 'table',
+			'#header' => $header,
+			'#rows' => $rows,
+	);
+	$form['submit'] = array(
+			'#type' => 'submit',
+			'#value' => t('Share "My QScience instance" configuration'),
+			'#disabled' => !$is_friend || !$is_registered,
+	);
+	return $form;
+}
+
+/**
+* Implements hook_submit().
+* Export a pattern with the settings from the custom modules provided
+* by the QScience distribution, and send it to the official Patterns server.
+*/
+function qscience_patterns_client_form_submit($form, &$form_state) {
+  global $user;
+  global $base_url;
+  // Load patterns_io components
+  patterns_io_load_components(TRUE);
+  // Prepare the info headers, generated manually
+  $info = array();
+  $info['title']  = 'QScience configuration of ' . $base_url;
+  $info['category']  = 'QScience';
+  $info['description']  = 'Automatically extracted configuration for QTR, VisualScience and D2D modules';
+  $info['version']  = '1.0';
+  $info['core']  = '7.x';
+  $info['author']  = $user->name;
+  $info['author_email']  = $user->mail;
+  $info['author_website']  = $base_url;
+  // Prepare the exports array "manually". For the moment only QTR, VisualScience and D2D
+  $exports = array();
+  $exports['qtr']['qtr_parameters']['export'][] = 'qtr_patterns_export_parameters';
+  $exports['visualscience']['visualscience_config']['export'][] = 'visualscience_export_config';
+  $exports['d2d']['d2d_friendship']['export'][] = 'd2d_patterns_export_all_friendships';
+  $exports['d2d']['d2d_group']['export'][] = 'd2d_patterns_export_all_groups';
+  $exports['d2d']['d2d_settings']['export'][] = 'd2d_patterns_export_settings';
+  // Create a new filename with a timestamp
+  $filename = 'qscience_modules_' . date_timestamp_get(date_create()) . '.yaml';
+  $dir = patterns_path_get_files_dir();
+  if (patterns_export_start_engine($filename, $exports, $info, PATTERNS_EXPORT_TO_DB, 'yaml', 'php', 'modify')) {
+    // Prepare a "limited" version of the pattern object with the mandatory attributes
+    $p = (object) array(
+      'name' => $filename,
+      'format'=>'yaml',
+      'file'=>patterns_path_get_files_dir() . '/' . $filename);
+    patterns_client_push_patterns(array($p));
+  }
+  else{
+    drupal_set_message(t('It was not possible to export the configuration of the QScience modules.'), 'error');
+  }
+}
+
+/**
+ * Establish a friendship with Patterns Server automatically.
+ * @TO-DO: Send a friendship request that gets automatically accepted
+ * by the server, once the changes on D2D allow this operation (see line 192).
+ */
+function _qscience_patterns_client_automatic_friendship() {
+  /*Idea:
+   * - Get ID, name and description - done
+   * - Add instance d2d_api_instance_add($instance) - done
+   * - Retrieve and select public key - done
+   * - Send a automatically acceptable friendship request - pending on changes on D2D
+   * - Check that has been successfuly accepted - pending on changes on D2D
+   */
+	// Get ID, name and description automatically
+  $res = xmlrpc(PATTERNS_OFFICIAL_SERVER_XMLRPC, array('d2d.getInstanceInformation' => array()));
+  if ($res === FALSE) {
+    form_set_error('', t('Error retrieving information from other instance.'));
+  }
+  else{
+    $instance = d2d_explode($res);
+    if ($instance === FALSE || !d2d_check_array($instance, array(
+      'd2d_id' => 'd2d_check_d2d_id',
+      'name' => 'd2d_check_name',
+      'description' => 'd2d_check_description',
+      )))
+    {
+      drupal_set_message(t('Information received from Patterns Server is invalid'), 'error');
+    }
+    else{
+      // If the data received is correct, add the url field and add the instance to the DB
+      $instance['url'] = PATTERNS_OFFICIAL_SERVER_XMLRPC;
+      $d2d_id = d2d_api_instance_add($instance);
+
+      // Retrieve the Public Key and select it automatically
+      $res = xmlrpc($instance['url'], array('d2d.getPublicKey' => array($instance['d2d_id'])));
+      if ($res === FALSE) {
+        $xmlrpc_error = xmlrpc_error();
+        if ($xmlrpc_error != NULL) {
+          drupal_set_message(t('Error retrieving public key.<br/>Error code @code<br/>"@message"', array('@code' => $xmlrpc_error->code, '@message' => $xmlrpc_error->message)), 'error');
+        }
+        else{
+          drupal_set_message(t('Error retrieving public key.'), 'error');
+        }
+      }
+      else{
+        drupal_set_message(t('Public key has been received.'));
+        // TODO: check length / format of received string.
+        $public_key_id = d2d_api_public_key_return_id($instance['d2d_id'], $res);
+        if ($public_key_id !== FALSE) {
+          drupal_set_message(t('Public key with id @id is already available in database.', array('@id' => $public_key_id)), 'error');
+        }
+        else{
+          // Insert Public key in the DB
+          $id_pk = d2d_api_public_key_set($d2d_id, $res);
+          // Select automatically that Public key for this instance
+          if (d2d_api_public_key_select($d2d_id, $id_pk)) {
+            drupal_set_message(t("Public key has been inserted into the DB and selected for this instance automatically"));
+            // Send friendship request change (0->3)
+            d2d_api_friendship_update($d2d_id, 3, 0, d2d_api_own_instance_id_get());
+            drupal_set_message(t("Friendship forced"));
+            /* @TO-DO: Check that has been accepted automatically. This is pending on changes on D2D, if
+            we try to registed without having being actually accepted we get 
+            Error message
+              http://localhost/patterns_server/xmlrpc.php - remote error: no friendship found or wrong signature*/
+          }
+        }
+      }
+    }
+  }
+  drupal_goto('admin/patterns/qscience');
+}
+
+
+/**
+ * Generates and sent automatic credentials to Patterns Server.
+ */
+function _qscience_patterns_client_automatic_credentials() {
+  global $user;
+  //Set autopublish to TRUE and the official server
+  variable_set('patterns_client_auto_publish', TRUE);
+  variable_set('patterns_client_server', PATTERNS_OFFICIAL_SERVER_XMLRPC);
+  // We will user the e-mail of the user, and a random username and password
+  $username = 'qscience_' . user_password(6);
+  $pass = user_password(12);
+  drupal_set_message(t('Your automatically generated credentials - username: !username - password: !pass',
+  array('!username' => $username, '!pass' => $pass)));
+  // This function currently does not return anything (true/false).
+  // Therefore we'll display the credentials first and show the error displayed by the function if any
+  patterns_client_register_user_on_server(PATTERNS_OFFICIAL_SERVER_XMLRPC, $username, $pass, $user->mail);
+  drupal_goto('admin/patterns/qscience');
+}
