@@ -53,76 +53,225 @@ function qscience_client_page($form, $form_state) {
     '#markup' => t('Here you can quickly connect to the Patterns, and D2D server, to join the QScience network.'),
   );
 
+  $form['main']['d2d'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('D2D'),
+  );
+  $form['main']['d2d']['d2d_client'] = qscience_client_d2d_form();
 
   $form['main']['patterns'] = array(
     '#type' => 'fieldset',
     '#title' => t('Patterns'),
   );
-  $form['main']['patterns']['patterns_client'] = drupal_get_form('qscience_client_patterns_form');
-
-  $form['main']['d2d'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('D2D'),
-  );
-  $form['main']['d2d']['d2d_client'] = drupal_get_form('qscience_client_d2d_form');
+  $form['main']['patterns']['patterns_client'] = qscience_client_patterns_form();
 
   return $form;
 }
 
+
 /**
- * Implements hook_form().
- *
  * Checks if the requirements to generate a pattern and send it to the "official" server
  * are fulfilled. In that case, enables a button to export and push a pattern in just
  * one click.
- * @param $form
- * @param $form_state
- * @return array  Form to perform the operation.
+ *
+ * @return array
+ *   A form array to be built by drupal_get_form().
  */
-function qscience_client_patterns_form($form, &$form_state) {
-  $info = patterns_client_check_credentials_and_display_warns();
+function qscience_client_d2d_form() {
 
-  if (!$info['ready']) {
-    return;
-  }
-
-  $url = $info['url'];
-  $credentials = $info['credentials'];
-
-
-  $form = array();
-  $is_friend = d2d_api_friend_get_by_url($url);
-  $is_registered = patterns_client_is_user_registered_on_server($url);
-
-  $patterns_server_link = l('Patterns Server', $url, array('attributes' => array('target' => '_blank')));
   $d2d_link = l(t('D2D settings'), 'admin/d2d');
 
-  $automatic_friendship_link = l(t('establish a friendship automatically with the official Patterns Server'), 'admin/qscience/automatic-friendship');
+  $automatic_friendship_link = l(t('Establish friendship automatically.'),
+                                 'admin/qscience/automatic-friendship-d2d');
 
-  $automatic_credentials_link = l(t('register with automatically generated credentials'), 'admin/qscience/automatic-credentials');
+  $auto_or_manual = t('!auto Go to the !manual to do it manually.', array(
+    '!auto' => $automatic_friendship_link,
+    '!manual'=> $d2d_link,
+  ));
+
+  $url = variable_get('D2D_PASSPORT_SERVER_URL', FALSE);
+
+
+
+  // Check if there is D2D server registered, else show default.
+  if (!$url) {
+    $d2d_server_link = l('D2D Server', D2D_PASSPORT_SERVER_URL, array(
+      'attributes' => array('target' => '_blank'),
+    ));
+    $url_check = t('Not set. Choose the official !server and establish friendship.', array(
+      '!server' => $d2d_server_link,
+    ));
+    $instance = array( 'is_friend' => FALSE );
+  }
+  else {
+
+    $instances = d2d_api_instance_get();
+    foreach ($instances as $i) {
+      if ($i['is_me'] === 1) {
+        // Falsy.
+        continue;
+      }
+      if ($i['url'] === $url) {
+        $instance = $i;
+        break;
+      }
+    }
+
+    $d2d_server_link = l('D2D Server', $url, array(
+      'attributes' => array('target' => '_blank'),
+    ));
+    // Check if it is the official D2D Server.
+    $is_official = D2D_PASSPORT_OFFICIAL_SERVER_XMLRPC === $url;
+    if ($is_official) {
+      $url_check = t('Set to the official !server.', array(
+        '!server' => $d2d_server_link,
+      ));
+    }
+    else {
+      $unofficial_d2d_server_link = l($url, $url, array(
+        'attributes' => array('target' => '_blank'),
+      ));
+      $url_check = t('!url - different from official !server', array(
+        '!server' => $d2d_server_link,
+        '!url' => $unofficial_d2d_server_link,
+      ));
+    }
+  }
+
+  // Are we friend with it ?
+  if (!$instance['is_friend']) {
+    $friend_check = t('You are not friend with !server. !autofriend. ', array(
+      '!autofriend' => $automatic_friendship_link,
+    ));
+  }
+  else {
+    $friend_check = t('Friendship established.');
+  }
+
+  $form['status'] = array(
+    '#markup' => t('Register your web site '),
+  );
+  $header = array(
+    array('data' => t('Requirement')),
+    array('data' => t('State / Actions')),
+	);
+  $rows[] = array(
+    array('data' => t('D2D Server selected.')),
+    array('data' => $url_check),
+	);
+	$rows[] = array(
+    array('data' => t('Friendship established with !d2d_server.', array(
+      '!d2d_server' => $d2d_server_link,
+    ))),
+    array('data' => $friend_check),
+	);
+	$form['table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+	);
+	return $form;
+}
+
+/**
+ * Checks if the requirements to generate a pattern and send it to
+ * the "official" server are fulfilled. In that case, enables a button to
+ * export and push a pattern in just one click.
+ *
+ * @return array
+ *   A form array to be built by drupal_get_form().
+ */
+function qscience_client_patterns_form() {
+
+  $info = patterns_client_check_credentials_and_display_warns();
+
+  $d2d_link = l(t('D2D settings'), 'admin/d2d');
+
+  $automatic_friendship_link =l(t('Establish friendship automatically.'),
+                                 'admin/qscience/automatic-friendship');
+
+  $auto_or_manual = t('!auto Go to the !manual to do it manually.', array(
+    '!auto' => $automatic_friendship_link,
+    '!manual'=> $d2d_link,
+  ));
+
   $patterns_share_link = l(t('Patterns Share settings'), 'admin/share');
+
+  // Check if there is Patterns server registered, else show default.
+  if (!$info['url']) {
+    $patterns_server_link = l('Patterns Server', PATTERNS_CLIENT_OFFICIAL_SERVER, array(
+      'attributes' => array('target' => '_blank'),
+    ));
+    $url_check = t('Not set. Choose the official !server and establish friendship.', array(
+      '!server' => $patterns_server_link,
+    ));
+  }
+  else {
+    $url = $info['url'];
+    $patterns_server_link = l('Patterns Server', $url, array(
+      'attributes' => array('target' => '_blank'),
+    ));
+    // Check if it is the official Patterns Server.
+    $is_official = PATTERNS_CLIENT_OFFICIAL_SERVER_XMLRPC === $url;
+    if ($is_official) {
+      $url_check = t('Set to the official !server.', array(
+        '!server' => $patterns_server_link,
+      ));
+    }
+    else {
+      $unofficial_patterns_server_link = l($url, $url, array(
+        'attributes' => array('target' => '_blank'),
+      ));
+      $url_check = t('!url - different from official !server', array(
+        '!server' => $patterns_server_link,
+        '!url' => $unofficial_patterns_server_link,
+      ));
+    }
+  }
+
+
+  // Are we friend with it ?
+  if (!$info['friend']) {
+    $friend_check = t('You are not friend with !server. !autofriend. ', array(
+      '!autofriend' => $automatic_friendship_link,
+    ));
+  }
+  else {
+    $friend_check = t('Friendship established.');
+  }
+
+  // Have we registered a username ?
+  $credentials = $info['credentials'];
+  if (empty($credentials)) {
+    $credentials_check = t('No user registered / set. Please visit !patterns_share to create your account.',
+                         array('!patterns_share' => $patterns_share_link));
+  }
+  else {
+    $credentials_check = t('Username: !user.', array(
+      '!user' => $credentials['user'],
+    ));
+  };
 
   $form['status'] = array(
     '#markup' => t('Before being able to share your config in one click, you will need to perform the following operations:'),
   );
   $header = array(
     array('data' => t('Requirement')),
-    array('data' => t('Satisfied?')),
+    array('data' => t('State / Actions')),
 	);
   $rows[] = array(
     array('data' => t('Patterns Server selected.')),
-    array('data' => ($is_friend) ? t('Yes'): t('No. Please click here to !friendship_link or visit !d2d_settings to do it manually.',
-                  array('!friendship_link' => $automatic_friendship_link, '!d2d_settings' => $d2d_link))),
+    array('data' => $url_check),
 	);
 	$rows[] = array(
-    array('data' => t('Friendship established with !patterns_server.', array('!patterns_server' => $patterns_server_link))),
-    array('data' => ($is_friend) ? t('Yes'): t('No. Please click here to !friendship_link or visit !d2d_settings to do it manually.',
-                  array('!friendship_link' => $automatic_friendship_link, '!d2d_settings' => $d2d_link))),
+    array('data' => t('Friendship established with !patterns_server.', array(
+      '!patterns_server' => $patterns_server_link,
+    ))),
+    array('data' => $friend_check),
 	);
 	$rows[] = array(
     array('data' => t('User registered at !patterns_server.', array('!patterns_server' => $patterns_server_link))),
-    array('data' => ($is_registered) ? t('Yes'): t('No. Please click here to !credentials_link or visit !patterns_share to create your account manually.',
-                  array('!credentials_link' => $automatic_credentials_link, '!patterns_share' => $patterns_share_link,))),
+    array('data' => $credentials_check),
 	);
 	$form['table'] = array(
     '#theme' => 'table',
@@ -132,8 +281,10 @@ function qscience_client_patterns_form($form, &$form_state) {
 	$form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Share "My QScience instance" configuration'),
-    '#disabled' => !$is_friend || !$is_registered,
+    '#disabled' => !$info['ready'],
+    '#submit' => array('qscience_client_patterns_form_submit'),
 	);
+
 	return $form;
 }
 
@@ -181,64 +332,6 @@ function qscience_client_patterns_form_submit($form, &$form_state) {
   }
 }
 
-/**
- * Implements hook_form().
- *
- * Checks if the requirements to generate a pattern and send it to the "official" server
- * are fulfilled. In that case, enables a button to export and push a pattern in just
- * one click.
- */
-function qscience_client_d2d_form($form, &$form_state) {
-  $info = patterns_client_check_credentials_and_display_warns();
-
-  if (!$info['ready']) {
-    return;
-  }
-
-  $url = $info['url'];
-  $credentials = $info['credentials'];
-
-  $form = array();
-  $is_friend = d2d_api_friend_get_by_url($url);
-  $is_registered = patterns_client_is_user_registered_on_server($url);
-
-  $d2d_server_link = l('D2D Server', $url, array('attributes' => array('target' => '_blank')));
-  $d2d_link = l(t('D2D settings'), 'admin/d2d');
-
-  $automatic_friendship_link = l(t('establish a friendship automatically with the official D2D Server'), 'admin/qscience/automatic-friendship');
-
-  $automatic_credentials_link = l(t('register with automatically generated credentials'), 'admin/qscience/automatic-credentials');
-  $d2d_settings = l(t('D2D settings'), 'admin/d2d');
-
-  $form['status'] = array(
-    '#markup' => t('Before being able to share your config in one click, you will need to perform the following operations:'),
-  );
-  $header = array(
-    array('data' => t('Requirement')),
-    array('data' => t('Satisfied?')),
-	);
-	$rows[] = array(
-    array('data' => t('Are you friends with !d2d_server?', array('!d2d_server' => $d2d_server_link))),
-    array('data' => ($is_friend) ? t('Yes'): t('No. Please click here to !friendship_link or visit !d2d_settings to do it manually.',
-                  array('!friendship_link' => $automatic_friendship_link, '!d2d_settings' => $d2d_link))),
-	);
-	$rows[] = array(
-    array('data' => t('Are you registered at !d2d_server?', array('!d2d_server' => $d2d_server_link))),
-    array('data' => ($is_registered) ? t('Yes'): t('No. Please click here to !credentials_link or visit !patterns_share to create your account manually.',
-                  array('!credentials_link' => $automatic_credentials_link, '!patterns_share' => $d2d_settings,))),
-	);
-	$form['table'] = array(
-    '#theme' => 'table',
-    '#header' => $header,
-    '#rows' => $rows,
-	);
-	$form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Share "My QScience instance" configuration'),
-    '#disabled' => !$is_friend || !$is_registered,
-	);
-	return $form;
-}
 
 /**
  * Establish a friendship with Patterns Server automatically.
@@ -246,14 +339,16 @@ function qscience_client_d2d_form($form, &$form_state) {
  * by the server, once the changes on D2D allow this operation (see line 192).
  */
 function _qscience_client_automatic_friendship() {
-  /*Idea:
-   * - Get ID, name and description - done
-   * - Add instance d2d_api_instance_add($instance) - done
-   * - Retrieve and select public key - done
-   * - Send a automatically acceptable friendship request - pending on changes on D2D
-   * - Check that has been successfuly accepted - pending on changes on D2D
-   */
-	// Get ID, name and description automatically
+
+//  Idea:
+//    - Get ID, name and description
+//    - Add instance d2d_api_instance_add($instance)
+//    - Retrieve and select public key
+//    - Send a automatically friendship request
+//    - Check that has been successfuly accepted
+
+
+	// Get ID, name and description automatically.
   $res = xmlrpc(PATTERNS_OFFICIAL_SERVER_XMLRPC, array('d2d.getInstanceInformation' => array()));
   if ($res === FALSE) {
     form_set_error('', t('Error retrieving information from other instance.'));
