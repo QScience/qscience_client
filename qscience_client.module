@@ -24,21 +24,17 @@ function qscience_client_menu() {
     'title' => 'QScience',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('qscience_client_page'),
-    'access arguments' => array(
-      'administer patterns',
-      'administer qscience',
-      'administer d2d',
-    ),
+    'access arguments' => array('access administration pages'),
     'weight' => -20,
   );
-  $items['admin/qscience/automatic-friendship'] = array(
-    'page callback' => '_qscience_client_automatic_friendship',
-    'access callback' => !d2d_api_friend_get_by_url(PATTERNS_OFFICIAL_SERVER_XMLRPC),
-  );
-  $items['admin/qscience/automatic-credentials'] = array(
-    'page callback' => '_qscience_client_automatic_credentials',
-    'access callback' => !patterns_client_is_user_registered_on_server(PATTERNS_OFFICIAL_SERVER_XMLRPC),
-  );
+//  $items['admin/qscience/automatic-friendship'] = array(
+//    'page callback' => '_qscience_client_automatic_friendship',
+//    'access callback' => !d2d_api_friend_get_by_url(PATTERNS_OFFICIAL_SERVER_XMLRPC),
+//  );
+//  $items['admin/qscience/automatic-credentials'] = array(
+//    'page callback' => '_qscience_client_automatic_credentials',
+//    'access callback' => !patterns_client_is_user_registered_on_server(PATTERNS_OFFICIAL_SERVER_XMLRPC),
+//  );
   return $items;
 }
 /**
@@ -50,9 +46,13 @@ function qscience_client_page($form, $form_state) {
   $form = array();
 
   $form['main'] = array(
-    '#type' => 'fieldset',
+    '#type' => 'container',
     '#title' => t('QScience'),
   );
+  $form['main']['description'] = array(
+    '#markup' => t('Here you can quickly connect to the Patterns, and D2D server, to join the QScience network.'),
+  );
+
 
   $form['main']['patterns'] = array(
     '#type' => 'fieldset',
@@ -62,7 +62,7 @@ function qscience_client_page($form, $form_state) {
 
   $form['main']['d2d'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Patterns'),
+    '#title' => t('D2D'),
   );
   $form['main']['d2d']['d2d_client'] = drupal_get_form('qscience_client_d2d_form');
 
@@ -109,13 +109,18 @@ function qscience_client_patterns_form($form, &$form_state) {
     array('data' => t('Requirement')),
     array('data' => t('Satisfied?')),
 	);
-	$rows[] = array(
-    array('data' => t('Are you friends with !patterns_server?', array('!patterns_server' => $patterns_server_link))),
+  $rows[] = array(
+    array('data' => t('Patterns Server selected.')),
     array('data' => ($is_friend) ? t('Yes'): t('No. Please click here to !friendship_link or visit !d2d_settings to do it manually.',
                   array('!friendship_link' => $automatic_friendship_link, '!d2d_settings' => $d2d_link))),
 	);
 	$rows[] = array(
-    array('data' => t('Are you registered at !patterns_server?', array('!patterns_server' => $patterns_server_link))),
+    array('data' => t('Friendship established with !patterns_server.', array('!patterns_server' => $patterns_server_link))),
+    array('data' => ($is_friend) ? t('Yes'): t('No. Please click here to !friendship_link or visit !d2d_settings to do it manually.',
+                  array('!friendship_link' => $automatic_friendship_link, '!d2d_settings' => $d2d_link))),
+	);
+	$rows[] = array(
+    array('data' => t('User registered at !patterns_server.', array('!patterns_server' => $patterns_server_link))),
     array('data' => ($is_registered) ? t('Yes'): t('No. Please click here to !credentials_link or visit !patterns_share to create your account manually.',
                   array('!credentials_link' => $automatic_credentials_link, '!patterns_share' => $patterns_share_link,))),
 	);
@@ -193,18 +198,17 @@ function qscience_client_d2d_form($form, &$form_state) {
   $url = $info['url'];
   $credentials = $info['credentials'];
 
-
   $form = array();
   $is_friend = d2d_api_friend_get_by_url($url);
   $is_registered = patterns_client_is_user_registered_on_server($url);
 
-  $patterns_server_link = l('Patterns Server', $url, array('attributes' => array('target' => '_blank')));
+  $d2d_server_link = l('D2D Server', $url, array('attributes' => array('target' => '_blank')));
   $d2d_link = l(t('D2D settings'), 'admin/d2d');
 
-  $automatic_friendship_link = l(t('establish a friendship automatically with the official Patterns Server'), 'admin/qscience/automatic-friendship');
+  $automatic_friendship_link = l(t('establish a friendship automatically with the official D2D Server'), 'admin/qscience/automatic-friendship');
 
   $automatic_credentials_link = l(t('register with automatically generated credentials'), 'admin/qscience/automatic-credentials');
-  $patterns_share_link = l(t('Patterns Share settings'), 'admin/share');
+  $d2d_settings = l(t('D2D settings'), 'admin/d2d');
 
   $form['status'] = array(
     '#markup' => t('Before being able to share your config in one click, you will need to perform the following operations:'),
@@ -214,14 +218,14 @@ function qscience_client_d2d_form($form, &$form_state) {
     array('data' => t('Satisfied?')),
 	);
 	$rows[] = array(
-    array('data' => t('Are you friends with !patterns_server?', array('!patterns_server' => $patterns_server_link))),
+    array('data' => t('Are you friends with !d2d_server?', array('!d2d_server' => $d2d_server_link))),
     array('data' => ($is_friend) ? t('Yes'): t('No. Please click here to !friendship_link or visit !d2d_settings to do it manually.',
                   array('!friendship_link' => $automatic_friendship_link, '!d2d_settings' => $d2d_link))),
 	);
 	$rows[] = array(
-    array('data' => t('Are you registered at !patterns_server?', array('!patterns_server' => $patterns_server_link))),
+    array('data' => t('Are you registered at !d2d_server?', array('!d2d_server' => $d2d_server_link))),
     array('data' => ($is_registered) ? t('Yes'): t('No. Please click here to !credentials_link or visit !patterns_share to create your account manually.',
-                  array('!credentials_link' => $automatic_credentials_link, '!patterns_share' => $patterns_share_link,))),
+                  array('!credentials_link' => $automatic_credentials_link, '!patterns_share' => $d2d_settings,))),
 	);
 	$form['table'] = array(
     '#theme' => 'table',

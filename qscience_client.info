@@ -1,12 +1,10 @@
-name = QScience Patterns Client
-description = Allows the user to send the full QScience configuration to the patterns official server very easily.
+name = QScience Client
+description = Provides an intuitive interface for user to connect, and interact with Patterns Server and D2D Server.
 core = 7.x
 package = QScience
 dependencies[] = qscience
 dependencies[] = patterns_client
-; Information added by drupal.org packaging script on 2013-10-09
-version = "7.x-1.0+13-dev"
-core = "7.x"
-project = "qscience_profile"
-datestamp = "1381282662"
+dependencies[] = d2d_passport
+dependencies[] = d2d_patterns
+dependencies[] = visualscience_patterns
 
