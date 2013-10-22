@@ -27,10 +27,10 @@ function qscience_client_menu() {
     'access arguments' => array('access administration pages'),
     'weight' => -20,
   );
-//  $items['admin/qscience/automatic-friendship'] = array(
-//    'page callback' => '_qscience_client_automatic_friendship',
-//    'access callback' => !d2d_api_friend_get_by_url(PATTERNS_OFFICIAL_SERVER_XMLRPC),
-//  );
+  $items['admin/qscience/automatic-friendship'] = array(
+    'page callback' => '_qscience_client_automatic_friendship',
+    'access arguments' => array('access administration pages'),
+  );
 //  $items['admin/qscience/automatic-credentials'] = array(
 //    'page callback' => '_qscience_client_automatic_credentials',
 //    'access callback' => !patterns_client_is_user_registered_on_server(PATTERNS_OFFICIAL_SERVER_XMLRPC),
@@ -50,7 +50,7 @@ function qscience_client_page($form, $form_state) {
     '#title' => t('QScience'),
   );
   $form['main']['description'] = array(
-    '#markup' => t('Here you can quickly connect to the Patterns, and D2D server, to join the QScience network.'),
+    '#markup' => t('Here you can quickly connect to the Patterns, and D2D server, to join the QScience network. <strong>Important</strong>: for joining the official Patterns and D2D server you need to have a public address and not localhost.'),
   );
 
   $form['main']['d2d'] = array(
@@ -64,6 +64,13 @@ function qscience_client_page($form, $form_state) {
     '#title' => t('Patterns'),
   );
   $form['main']['patterns']['patterns_client'] = qscience_client_patterns_form();
+
+  $form['main']['d2dsearch'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('D2D Search'),
+    '#description' => t('Search for papers in your network of D2D friends.'),
+  );
+  $form['main']['d2dsearch']['d2dsearchlink'] = qscience_client_d2dsearch_form();
 
   return $form;
 }
@@ -81,8 +88,8 @@ function qscience_client_d2d_form() {
 
   $d2d_link = l(t('D2D settings'), 'admin/d2d');
 
-  $automatic_friendship_link = l(t('Establish friendship automatically.'),
-                                 'admin/qscience/automatic-friendship-d2d');
+  $automatic_friendship_link = l(t('Establish friendship automatically'),
+                               'admin/qscience/automatic-friendship-d2d');
 
   $auto_or_manual = t('!auto Go to the !manual to do it manually.', array(
     '!auto' => $automatic_friendship_link,
@@ -91,15 +98,14 @@ function qscience_client_d2d_form() {
 
   $url = variable_get('D2D_PASSPORT_SERVER_URL', FALSE);
 
-
-
   // Check if there is D2D server registered, else show default.
   if (!$url) {
-    $d2d_server_link = l('D2D Server', D2D_PASSPORT_SERVER_URL, array(
+    $d2d_server_link = l('D2D Server', D2D_PASSPORT_OFFICIAL_SERVER, array(
       'attributes' => array('target' => '_blank'),
     ));
-    $url_check = t('Not set. Choose the official !server and establish friendship.', array(
+    $url_check = t('You have <strong>not</strong> selected a server. The official !server will be used.', array(
       '!server' => $d2d_server_link,
+      '!autofriend' => $automatic_friendship_link,
     ));
     $instance = array( 'is_friend' => FALSE );
   }
@@ -123,7 +129,7 @@ function qscience_client_d2d_form() {
     // Check if it is the official D2D Server.
     $is_official = D2D_PASSPORT_OFFICIAL_SERVER_XMLRPC === $url;
     if ($is_official) {
-      $url_check = t('Set to the official !server.', array(
+      $url_check = t('Set to the official !server', array(
         '!server' => $d2d_server_link,
       ));
     }
@@ -140,7 +146,8 @@ function qscience_client_d2d_form() {
 
   // Are we friend with it ?
   if (!$instance['is_friend']) {
-    $friend_check = t('You are not friend with !server. !autofriend. ', array(
+    $friend_check = t('You are <strong>not</strong> friend with !server. !autofriend.', array(
+      '!server' => $d2d_server_link,
       '!autofriend' => $automatic_friendship_link,
     ));
   }
@@ -149,7 +156,7 @@ function qscience_client_d2d_form() {
   }
 
   $form['status'] = array(
-    '#markup' => t('Register your web site '),
+    '#markup' => t('Increase your visibility, and find new communities with shared interests: register your web site in the D2D Server!'),
   );
   $header = array(
     array('data' => t('Requirement')),
@@ -188,14 +195,14 @@ function qscience_client_patterns_form() {
   $d2d_link = l(t('D2D settings'), 'admin/d2d');
 
   $automatic_friendship_link =l(t('Establish friendship automatically.'),
-                                 'admin/qscience/automatic-friendship');
+                              'admin/qscience/automatic-friendship');
 
   $auto_or_manual = t('!auto Go to the !manual to do it manually.', array(
     '!auto' => $automatic_friendship_link,
     '!manual'=> $d2d_link,
   ));
 
-  $patterns_share_link = l(t('Patterns Share settings'), 'admin/share');
+  $patterns_share_link = l(t('Patterns Share settings'), 'admin/patterns/share');
 
   // Check if there is Patterns server registered, else show default.
   if (!$info['url']) {
@@ -232,7 +239,8 @@ function qscience_client_patterns_form() {
 
   // Are we friend with it ?
   if (!$info['friend']) {
-    $friend_check = t('You are not friend with !server. !autofriend. ', array(
+    $friend_check = t('You are <strong>not</strong> friend with !server. !autofriend. ', array(
+      '!server' => $patterns_server_link,
       '!autofriend' => $automatic_friendship_link,
     ));
   }
@@ -243,7 +251,7 @@ function qscience_client_patterns_form() {
   // Have we registered a username ?
   $credentials = $info['credentials'];
   if (empty($credentials)) {
-    $credentials_check = t('No user registered / set. Please visit !patterns_share to create your account.',
+    $credentials_check = t('User <strong>not</strong> registered / set. Please visit !patterns_share to create your account.',
                          array('!patterns_share' => $patterns_share_link));
   }
   else {
@@ -253,7 +261,7 @@ function qscience_client_patterns_form() {
   };
 
   $form['status'] = array(
-    '#markup' => t('Before being able to share your config in one click, you will need to perform the following operations:'),
+    '#markup' => t('Share your QScience settings and at the same type follow the last updates: register your username on Patterns Server!'),
   );
   $header = array(
     array('data' => t('Requirement')),
@@ -332,6 +340,22 @@ function qscience_client_patterns_form_submit($form, &$form_state) {
   }
 }
 
+/**
+ * Checks if the requirements to generate a pattern and send it to the "official" server
+ * are fulfilled. In that case, enables a button to export and push a pattern in just
+ * one click.
+ *
+ * @return array
+ *   A form array to be built by drupal_get_form().
+ */
+function qscience_client_d2dsearch_form() {
+
+  $form['status'] = array(
+    '#markup' => '<br/>' . l(t('Search for papers now.'), 'qscience_search'),
+  );
+
+	return $form;
+}
 
 /**
  * Establish a friendship with Patterns Server automatically.
@@ -347,61 +371,75 @@ function _qscience_client_automatic_friendship() {
 //    - Send a automatically friendship request
 //    - Check that has been successfuly accepted
 
+  $info = patterns_client_check_credentials_and_display_warns();
 
-	// Get ID, name and description automatically.
-  $res = xmlrpc(PATTERNS_OFFICIAL_SERVER_XMLRPC, array('d2d.getInstanceInformation' => array()));
-  if ($res === FALSE) {
-    form_set_error('', t('Error retrieving information from other instance.'));
+  if ($info['friend']) {
+    drupal_set_message(t('Friendship with server already established. Nothing to do.'),
+      'warning');
+    drupal_goto('admin/qscience');
+    return;
   }
-  else{
+
+  if (!$info['url']) {
+    // It means that the user is asking to do the whole process and using
+    // the default server. Otherwise, server must be set in Patterns Client.
+    $info['url'] = PATTERNS_CLIENT_OFFICIAL_SERVER_XMLRPC;
+  }
+
+  if (!$info['d2d_id']) {
+    // Get ID, name and description automatically.
+    $res = xmlrpc($info['url'], array('d2d.getInstanceInformation' => array()));
+    if ($res === FALSE) {
+      drupal_set_messaget(t('Error retrieving information from other instance.'),
+        'error');
+    }
+
     $instance = d2d_explode($res);
     if ($instance === FALSE || !d2d_check_array($instance, array(
       'd2d_id' => 'd2d_check_d2d_id',
       'name' => 'd2d_check_name',
       'description' => 'd2d_check_description',
-    )))
-      {
-        drupal_set_message(t('Information received from Patterns Server is invalid'), 'error');
-      }
-    else{
-      // If the data received is correct, add the url field and add the instance to the DB
-      $instance['url'] = PATTERNS_OFFICIAL_SERVER_XMLRPC;
-      $d2d_id = d2d_api_instance_add($instance);
+    ))) {
+      drupal_set_message(t('Information received from Patterns Server is invalid'),
+        'error');
+      return;
+    }
 
-      // Retrieve the Public Key and select it automatically
-      $res = xmlrpc($instance['url'], array('d2d.getPublicKey' => array($instance['d2d_id'])));
-      if ($res === FALSE) {
-        $xmlrpc_error = xmlrpc_error();
-        if ($xmlrpc_error != NULL) {
-          drupal_set_message(t('Error retrieving public key.<br/>Error code @code<br/>"@message"', array('@code' => $xmlrpc_error->code, '@message' => $xmlrpc_error->message)), 'error');
-        }
-        else{
-          drupal_set_message(t('Error retrieving public key.'), 'error');
-        }
-      }
-      else{
-        drupal_set_message(t('Public key has been received.'));
-        // TODO: check length / format of received string.
-        $public_key_id = d2d_api_public_key_return_id($instance['d2d_id'], $res);
-        if ($public_key_id !== FALSE) {
-          drupal_set_message(t('Public key with id @id is already available in database.', array('@id' => $public_key_id)), 'error');
-        }
-        else{
-          // Insert Public key in the DB
-          $id_pk = d2d_api_public_key_set($d2d_id, $res);
-          // Select automatically that Public key for this instance
-          if (d2d_api_public_key_select($d2d_id, $id_pk)) {
-            drupal_set_message(t("Public key has been inserted into the DB and selected for this instance automatically"));
-            // Send friendship request change (0->3)
-            d2d_api_friendship_update($d2d_id, 3, 0, d2d_api_own_instance_id_get());
-            drupal_set_message(t("Friendship forced"));
-            /* @TO-DO: Check that has been accepted automatically. This is pending on changes on D2D, if
-               we try to registed without having being actually accepted we get
-               Error message
-               http://localhost/patterns_server/xmlrpc.php - remote error: no friendship found or wrong signature*/
-          }
-        }
-      }
+    // If the data received is correct, add the url field and add the instance to the DB
+    $instance['url'] = $info['url'];
+
+    $info['id'] = d2d_api_instance_add($instance);
+    $info['d2d_id'] = $instance['d2d_id'];
+    $info['name'] = $instance['name'];
+    $info['description'] = $instance['description'];
+  }
+
+  if (!$info['public_key']) {
+
+    $res = d2d_api_public_key_request($info, TRUE);
+    if (!$res) {
+      // Other error messages already displayed.
+      drupal_goto('admin/qscience');
+      return;
+    }
+    // TODO: check length / format of received string.
+    $public_key_id = d2d_api_public_key_return_id($info['d2d_id'], $res);
+    if ($public_key_id !== FALSE) {
+      drupal_set_message(t('Public key with id @id is already available in database.', array(
+        '@id' => $public_key_id
+      )), 'warning');
+    }
+    else {
+      // Insert Public key in the DB
+      $public_key_id = d2d_api_public_key_set($info['id'], $res);
+      // Select automatically that Public key for this instance
+    }
+
+    if (d2d_api_public_key_select($info['id'], $public_key_id)) {
+      drupal_set_message(t("Public key has been inserted into the DB and selected for this instance automatically"));
+      // Send friendship request change (0->3).
+      d2d_api_friendship_update($info['id'], 3, 0, d2d_api_own_instance_id_get());
+      drupal_set_message(t("Friendship set."));
     }
   }
   drupal_goto('admin/qscience');
