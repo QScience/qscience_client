@@ -257,7 +257,7 @@ function qscience_client_patterns_form() {
                          array('!patterns_share' => $patterns_share_link));
   }
   else {
-    $credentials_check = t('Username: !user.', array(
+    $credentials_check = t('Username: !user', array(
       '!user' => $credentials['user'],
     ));
   };
