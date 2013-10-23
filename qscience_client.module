@@ -28,13 +28,13 @@ function qscience_client_menu() {
     'weight' => -20,
   );
   $items['admin/qscience/automatic-friendship'] = array(
-    'page callback' => '_qscience_client_automatic_friendship',
+    'page callback' => '_qscience_client_automatic_friendship_patterns',
     'access arguments' => array('access administration pages'),
   );
-//  $items['admin/qscience/automatic-credentials'] = array(
-//    'page callback' => '_qscience_client_automatic_credentials',
-//    'access callback' => !patterns_client_is_user_registered_on_server(PATTERNS_OFFICIAL_SERVER_XMLRPC),
-//  );
+  $items['admin/qscience/automatic-friendship-d2d'] = array(
+    'page callback' => '_qscience_client_automatic_friendship_d2d',
+    'access arguments' => array('access administration pages'),
+  );
   return $items;
 }
 /**
@@ -89,7 +89,7 @@ function qscience_client_d2d_form() {
   $d2d_link = l(t('D2D settings'), 'admin/d2d');
 
   $automatic_friendship_link = t('Proceed to establish friendship !auto.', array(
-    '!auto' => l(t('automatically'),'admin/qscience/automatic-friendship-d2d'),
+    '!auto' => l(t('automatically'), 'admin/qscience/automatic-friendship-d2d'),
   ));
 
   $auto_or_manual = t('!auto Go to the !manual to do it manually.', array(
@@ -98,6 +98,7 @@ function qscience_client_d2d_form() {
   ));
 
   $url = variable_get('D2D_PASSPORT_SERVER_URL', FALSE);
+  $instance = array( 'is_friend' => FALSE );
 
   // Check if there is D2D server registered, else show default.
   if (!$url) {
@@ -108,10 +109,8 @@ function qscience_client_d2d_form() {
       '!server' => $d2d_server_link,
       '!autofriend' => $automatic_friendship_link,
     ));
-    $instance = array( 'is_friend' => FALSE );
   }
   else {
-
     $instances = d2d_api_instance_get();
     foreach ($instances as $i) {
       if ($i['is_me'] === 1) {
@@ -359,25 +358,14 @@ function qscience_client_d2dsearch_form() {
 
 /**
  * Establish a friendship with Patterns Server automatically.
- * @TO-DO: Send a friendship request that gets automatically accepted
- * by the server, once the changes on D2D allow this operation (see line 192).
  */
-function _qscience_client_automatic_friendship() {
-
-//  Idea:
-//    - Get ID, name and description
-//    - Add instance d2d_api_instance_add($instance)
-//    - Retrieve and select public key
-//    - Send a automatically friendship request
-//    - Check that has been successfuly accepted
-
+function _qscience_client_automatic_friendship_patterns() {
   $info = patterns_client_check_credentials_and_display_warns();
 
   if ($info['friend']) {
     drupal_set_message(t('Friendship with server already established. Nothing to do.'),
       'warning');
     drupal_goto('admin/qscience');
-    return;
   }
 
   if (!$info['url']) {
@@ -386,6 +374,33 @@ function _qscience_client_automatic_friendship() {
     $info['url'] = PATTERNS_CLIENT_OFFICIAL_SERVER_XMLRPC;
     variable_set('patterns_client_server', PATTERNS_CLIENT_OFFICIAL_SERVER_XMLRPC);
   }
+  _qscience_client_automatic_friendship_helper($info);
+}
+
+/**
+ * Establish a friendship with D2D Server automatically.
+ */
+function _qscience_client_automatic_friendship_d2d() {
+  $url = variable_get('D2D_PASSPORT_SERVER_URL');
+  if (empty($url)) {
+    $url = D2D_PASSPORT_OFFICIAL_SERVER_XMLRPC;
+    variable_set('D2D_PASSPORT_SERVER_URL', $url);
+  }
+  $info = array(
+    'url' => $url,
+    'd2d_id' => NULL,
+    'public_key' => NULL,
+  );
+  _qscience_client_automatic_friendship_helper($info);
+}
+
+/**
+ * Helper function to establish a friendship with any server.
+ *
+ * @param array $info
+ *   Associative array of information about the instance (server).
+ */
+function _qscience_client_automatic_friendship_helper($info) {
 
   if (!$info['d2d_id']) {
     // Get ID, name and description automatically.
