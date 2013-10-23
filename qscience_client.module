@@ -64,14 +64,14 @@ function qscience_client_page($form, $form_state) {
     '#title' => t('Patterns'),
   );
   $form['main']['patterns']['patterns_client'] = qscience_client_patterns_form();
-
-  $form['main']['d2dsearch'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('D2D Search'),
-    '#description' => t('Search for papers in your network of D2D friends.'),
-  );
-  $form['main']['d2dsearch']['d2dsearchlink'] = qscience_client_d2dsearch_form();
-
+  if (patterns_utils_is_module_enabled('qscience_d2dsearch')) {
+    $form['main']['d2dsearch'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('D2D Search'),
+      '#description' => t('Search for papers in your network of D2D friends.'),
+    );
+    $form['main']['d2dsearch']['d2dsearchlink'] = qscience_client_d2dsearch_form();
+  }
   return $form;
 }
 
