@@ -88,8 +88,9 @@ function qscience_client_d2d_form() {
 
   $d2d_link = l(t('D2D settings'), 'admin/d2d');
 
-  $automatic_friendship_link = l(t('Establish friendship automatically'),
-                               'admin/qscience/automatic-friendship-d2d');
+  $automatic_friendship_link = t('Proceed to establish friendship !auto.', array(
+    '!auto' => l(t('automatically'),'admin/qscience/automatic-friendship-d2d'),
+  ));
 
   $auto_or_manual = t('!auto Go to the !manual to do it manually.', array(
     '!auto' => $automatic_friendship_link,
@@ -146,7 +147,7 @@ function qscience_client_d2d_form() {
 
   // Are we friend with it ?
   if (!$instance['is_friend']) {
-    $friend_check = t('You are <strong>not</strong> friend with !server. !autofriend.', array(
+    $friend_check = t('You are <strong>not</strong> friend with !server. => !autofriend', array(
       '!server' => $d2d_server_link,
       '!autofriend' => $automatic_friendship_link,
     ));
@@ -194,8 +195,9 @@ function qscience_client_patterns_form() {
 
   $d2d_link = l(t('D2D settings'), 'admin/d2d');
 
-  $automatic_friendship_link =l(t('Establish friendship automatically'),
-                              'admin/qscience/automatic-friendship');
+  $automatic_friendship_link = t('Proceed to establish friendship !auto.', array(
+    '!auto' => l(t('automatically'),'admin/qscience/automatic-friendship'),
+  ));
 
   $auto_or_manual = t('!auto Go to the !manual to do it manually.', array(
     '!auto' => $automatic_friendship_link,
@@ -209,7 +211,7 @@ function qscience_client_patterns_form() {
     $patterns_server_link = l('Patterns Server', PATTERNS_CLIENT_OFFICIAL_SERVER, array(
       'attributes' => array('target' => '_blank'),
     ));
-    $url_check = t('Not set. Choose the official !server and establish friendship.', array(
+    $url_check = t('You have <strong>not</strong> selected a server. The official !server will be used.', array(
       '!server' => $patterns_server_link,
     ));
   }
@@ -239,7 +241,7 @@ function qscience_client_patterns_form() {
 
   // Are we friend with it ?
   if (!$info['friend']) {
-    $friend_check = t('You are <strong>not</strong> friend with !server. !autofriend.', array(
+    $friend_check = t('You are <strong>not</strong> friend with !server. => !autofriend', array(
       '!server' => $patterns_server_link,
       '!autofriend' => $automatic_friendship_link,
     ));
@@ -251,7 +253,7 @@ function qscience_client_patterns_form() {
   // Have we registered a username ?
   $credentials = $info['credentials'];
   if (empty($credentials)) {
-    $credentials_check = t('User <strong>not</strong> registered / set. Please visit !patterns_share to create your account.',
+    $credentials_check = t('User <strong>not</strong> registered / set. => Please visit !patterns_share to create your account.',
                          array('!patterns_share' => $patterns_share_link));
   }
   else {
@@ -382,6 +384,7 @@ function _qscience_client_automatic_friendship() {
     // It means that the user is asking to do the whole process and using
     // the default server. Otherwise, server must be set in Patterns Client.
     $info['url'] = PATTERNS_CLIENT_OFFICIAL_SERVER_XMLRPC;
+    variable_set('patterns_client_server', PATTERNS_CLIENT_OFFICIAL_SERVER_XMLRPC);
   }
 
   if (!$info['d2d_id']) {
@@ -440,6 +443,8 @@ function _qscience_client_automatic_friendship() {
       drupal_goto('admin/qscience');
     }
   }
+  // Need to update friendship state first, and it gets sent.
+  d2d_api_friendship_update($info['id'], 1, NULL, d2d_api_own_instance_id_get());
   d2d_api_friendship_send($info['id'], TRUE, 1, TRUE);
   drupal_set_message(t('Friendship request sent.'));
 
