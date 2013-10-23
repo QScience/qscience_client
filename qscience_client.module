@@ -420,7 +420,6 @@ function _qscience_client_automatic_friendship() {
   }
 
   if (!$info['public_key']) {
-
     $res = d2d_api_public_key_request($info, TRUE);
     if (!$res) {
       // Other error messages already displayed.
@@ -428,25 +427,26 @@ function _qscience_client_automatic_friendship() {
     }
     // TODO: check length / format of received string.
     $public_key_id = d2d_api_public_key_return_id($info['d2d_id'], $res);
-    if ($public_key_id !== FALSE) {
-      drupal_set_message(t('Public key with id @id is already available in database.', array(
-        '@id' => $public_key_id
-      )), 'warning');
-    }
-    else {
+    if ($public_key_id === FALSE) {
       // Insert Public key in the DB
       $public_key_id = d2d_api_public_key_set($info['id'], $res);
     }
-
     if (d2d_api_public_key_select($info['id'], $public_key_id)) {
       drupal_set_message(t("Public key has been inserted into the DB and selected for this instance automatically"));
-      d2d_api_friendship_send($info['id'], TRUE, 1, TRUE);
-      drupal_set_message(t('Friendship request sent.'));
-      // Send friendship request change (0->3).
-      // d2d_api_friendship_update($info['id'], 3, 0, d2d_api_own_instance_id_get());
-      // drupal_set_message(t("Friendship set."));
+    }
+    else {
+      drupal_set_message(t('Could not select the public key for the instance. An error has occurred.'),
+        'error');
+      drupal_goto('admin/qscience');
     }
   }
+
+  d2d_api_friendship_send($info['id'], TRUE, 1, TRUE);
+  drupal_set_message(t('Friendship request sent.'));
+  // Send friendship request change (0->3).
+  // d2d_api_friendship_update($info['id'], 3, 0, d2d_api_own_instance_id_get());
+  // drupal_set_message(t("Friendship set."));
+
   drupal_goto('admin/qscience');
 }
 
