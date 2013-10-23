@@ -440,9 +440,11 @@ function _qscience_client_automatic_friendship() {
 
     if (d2d_api_public_key_select($info['id'], $public_key_id)) {
       drupal_set_message(t("Public key has been inserted into the DB and selected for this instance automatically"));
+      d2d_api_friendship_send($info['id'], TRUE, 1, TRUE);
+      drupal_set_message(t('Friendship request sent.'));
       // Send friendship request change (0->3).
-      d2d_api_friendship_update($info['id'], 3, 0, d2d_api_own_instance_id_get());
-      drupal_set_message(t("Friendship set."));
+      // d2d_api_friendship_update($info['id'], 3, 0, d2d_api_own_instance_id_get());
+      // drupal_set_message(t("Friendship set."));
     }
   }
   drupal_goto('admin/qscience');
