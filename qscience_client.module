@@ -404,13 +404,19 @@ function _qscience_client_automatic_friendship() {
       drupal_goto('admin/qscience');
     }
 
-    // If the data received is correct, add the url field and add the instance to the DB
-    $instance['url'] = $info['url'];
-
-    $info['id'] = d2d_api_instance_add($instance);
-    $info['d2d_id'] = $instance['d2d_id'];
-    $info['name'] = $instance['name'];
-    $info['description'] = $instance['description'];
+    // Check if instance is not already in db.
+    $instance_in_db = d2d_api_instance_get($instance['d2d_id']);
+    if (empty($instance_in_db)) {
+      // If the data received is correct, add the url field and add the instance to the DB
+      $instance['url'] = $info['url'];
+      $info['id'] = d2d_api_instance_add($instance);
+      $info['d2d_id'] = $instance['d2d_id'];
+      $info['name'] = $instance['name'];
+      $info['description'] = $instance['description'];
+    }
+    else {
+      $info = $instance_in_db;
+    }
   }
 
   if (!$info['public_key']) {
