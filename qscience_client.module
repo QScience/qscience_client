@@ -390,7 +390,7 @@ function _qscience_client_automatic_friendship() {
     // Get ID, name and description automatically.
     $res = xmlrpc($info['url'], array('d2d.getInstanceInformation' => array()));
     if ($res === FALSE) {
-      drupal_set_messaget(t('Error retrieving information from other instance.'),
+      drupal_set_message(t('Error retrieving information from other instance.'),
         'error');
     }
 
