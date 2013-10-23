@@ -349,12 +349,10 @@ function qscience_client_patterns_form_submit($form, &$form_state) {
  *   A form array to be built by drupal_get_form().
  */
 function qscience_client_d2dsearch_form() {
-
   $form['status'] = array(
     '#markup' => '<br/>' . l(t('Search for papers now.'), 'qscience_search'),
   );
-
-	return $form;
+  return $form;
 }
 
 /**
@@ -392,6 +390,7 @@ function _qscience_client_automatic_friendship() {
     if ($res === FALSE) {
       drupal_set_message(t('Error retrieving information from other instance.'),
         'error');
+      drupal_goto('admin/qscience');
     }
 
     $instance = d2d_explode($res);
@@ -402,7 +401,7 @@ function _qscience_client_automatic_friendship() {
     ))) {
       drupal_set_message(t('Information received from Patterns Server is invalid'),
         'error');
-      return;
+      drupal_goto('admin/qscience');
     }
 
     // If the data received is correct, add the url field and add the instance to the DB
@@ -420,7 +419,6 @@ function _qscience_client_automatic_friendship() {
     if (!$res) {
       // Other error messages already displayed.
       drupal_goto('admin/qscience');
-      return;
     }
     // TODO: check length / format of received string.
     $public_key_id = d2d_api_public_key_return_id($info['d2d_id'], $res);
@@ -432,7 +430,6 @@ function _qscience_client_automatic_friendship() {
     else {
       // Insert Public key in the DB
       $public_key_id = d2d_api_public_key_set($info['id'], $res);
-      // Select automatically that Public key for this instance
     }
 
     if (d2d_api_public_key_select($info['id'], $public_key_id)) {
