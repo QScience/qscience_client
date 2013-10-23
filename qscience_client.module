@@ -239,7 +239,7 @@ function qscience_client_patterns_form() {
 
   // Are we friend with it ?
   if (!$info['friend']) {
-    $friend_check = t('You are <strong>not</strong> friend with !server. !autofriend. ', array(
+    $friend_check = t('You are <strong>not</strong> friend with !server. !autofriend', array(
       '!server' => $patterns_server_link,
       '!autofriend' => $automatic_friendship_link,
     ));
