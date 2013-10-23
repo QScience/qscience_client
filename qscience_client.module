@@ -440,12 +440,8 @@ function _qscience_client_automatic_friendship() {
       drupal_goto('admin/qscience');
     }
   }
-
   d2d_api_friendship_send($info['id'], TRUE, 1, TRUE);
   drupal_set_message(t('Friendship request sent.'));
-  // Send friendship request change (0->3).
-  // d2d_api_friendship_update($info['id'], 3, 0, d2d_api_own_instance_id_get());
-  // drupal_set_message(t("Friendship set."));
 
   drupal_goto('admin/qscience');
 }
